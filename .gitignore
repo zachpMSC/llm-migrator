@@ -24,6 +24,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Ignore test output directories
+__tests__/watched-dir/*
 
 # Hides the raw HTML output files for email testing
 **/HTMLEmails/

@@ -25,7 +25,7 @@ export function handleDirectoryAddFileEvent({
   event: EventName;
   path: string;
 }) {
-  logger.info(`File added: ${path}`);
+  logger.info(`File added: ${path} with event: ${event}`);
 }
 
 /**
@@ -46,7 +46,7 @@ export function handleDirectoryUpdateFileEvent({
   event: EventName;
   path: string;
 }) {
-  logger.info(`File changed: ${path}`);
+  logger.info(`File changed: ${path} with eevent: ${event}`);
 }
 
 /**
@@ -67,5 +67,5 @@ export function handleDirectoryRemoveFileEvent({
   event: EventName;
   path: string;
 }) {
-  logger.info(`File removed: ${path}`);
+  logger.info(`File removed: ${path} with event: ${event}`);
 }

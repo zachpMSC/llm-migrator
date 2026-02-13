@@ -36,3 +36,7 @@ export type Chunk = {
   // audit / lifecycle
   createdAt: Date;
 };
+
+export interface ChunkingModule {
+  chunkDocument(): Promise<Chunk[]>;
+}

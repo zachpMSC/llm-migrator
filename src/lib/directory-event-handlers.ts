@@ -1,5 +1,6 @@
 import { EventName } from "chokidar/handler";
 import { logger } from "./logger";
+import { getFileFromPath } from "../utils";
 
 /**
  * @file Event handlers for directory watcher events.
@@ -26,6 +27,8 @@ export function handleDirectoryAddFileEvent({
   path: string;
 }) {
   logger.info(`File added: ${path} with event: ${event}`);
+  const file = getFileFromPath(path);
+  console.log(`File updated: ${file.name} with type: ${file.type}`);
 }
 
 /**
@@ -47,6 +50,8 @@ export function handleDirectoryUpdateFileEvent({
   path: string;
 }) {
   logger.info(`File changed: ${path} with eevent: ${event}`);
+  const file = getFileFromPath(path);
+  console.log(`File updated: ${file.name} with type: ${file.type}`);
 }
 
 /**

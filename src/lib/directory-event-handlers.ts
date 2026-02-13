@@ -1,6 +1,6 @@
 import { EventName } from "chokidar/handler";
 import { logger } from "./logger";
-import { getFileFromPath } from "../utils";
+import { getFileFromPath } from "./utils";
 
 /**
  * @file Event handlers for directory watcher events.

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { getFileFromPath } from "../../src/utils";
+import { getFileFromPath } from "../../src/lib/utils";
 
 describe("getFileFromPath", () => {
   const testDir = "__tests__/test-files";

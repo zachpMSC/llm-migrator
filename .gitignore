@@ -26,6 +26,7 @@ dist-ssr
 
 # Ignore test output directories
 __tests__/watched-dir/*
+!__tests__/watched-dir/.gitkeep
 
 # Hides the raw HTML output files for email testing
 **/HTMLEmails/

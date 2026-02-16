@@ -46,6 +46,7 @@ function getMimeType(filePath: string): string {
     ".doc": "application/msword",
     ".docx":
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".docm": "application/vnd.ms-word.document.macroEnabled.12",
     ".txt": "text/plain",
     ".json": "application/json",
     ".jpg": "image/jpeg",

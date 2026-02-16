@@ -29,6 +29,10 @@ export class WordChunker implements ChunkingModule {
 
   /* ----- PUBLIC METHODS ----- */
   public async chunkDocument(): Promise<Chunk[]> {
+    // 1. Parse document body with Mammoth
+    // 2. Identify sections using strategies
+    // 3. Break sections into chunks
+    // 4. Build Chunk objects with metadata
     return [];
   }
 
@@ -181,5 +185,21 @@ export class WordChunker implements ChunkingModule {
       .trim();
 
     return text;
+  }
+
+  private async _identifySections(documentHtml: string) {
+    // Run sectioning strategies, return best match
+  }
+
+  private _applyLetterStrategy(html: string) {
+    // Parse lettered sections (A., B., C.)
+  }
+
+  private _applyNumberStrategy(html: string) {
+    // Parse numbered sections (1.0, 2.0, 3.0)
+  }
+
+  private _applyHeadingStrategy(html: string) {
+    // Parse heading-based sections
   }
 }

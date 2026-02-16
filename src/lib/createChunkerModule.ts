@@ -12,7 +12,8 @@ export async function createChunkerModule(file: File) {
   switch (file.type) {
     case "application/pdf":
       return await PDFChunker.create(file);
-    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": // .docx
+    case "application/vnd.ms-word.document.macroEnabled.12": // .docm
       return await WordChunker.create(file);
     default:
       throw new Error(`Unsupported file type: ${file.type}`);

@@ -24,7 +24,6 @@ export class WordChunker implements ChunkingModule {
   static async create(file: File): Promise<WordChunker> {
     const chunker = new WordChunker(file);
     chunker._documentMetadata = await chunker._extractHeaderMetadata();
-    console.log("Extracted Document Metadata:", chunker._documentMetadata);
     return chunker;
   }
 
@@ -128,11 +127,25 @@ export class WordChunker implements ChunkingModule {
         ? paragraph["w:r"]
         : [paragraph["w:r"]];
       for (const run of runs) {
-        if (run["w:t"]) {
-          const textContent =
-            typeof run["w:t"] === "string" ? run["w:t"] : run["w:t"]["#text"];
-          if (textContent) {
-            text += textContent;
+        if (run["w:t"] !== undefined) {
+          let textContent;
+
+          // Handle different w:t formats
+          if (
+            typeof run["w:t"] === "string" ||
+            typeof run["w:t"] === "number"
+          ) {
+            textContent = run["w:t"];
+          } else if (
+            typeof run["w:t"] === "object" &&
+            run["w:t"]["#text"] !== undefined
+          ) {
+            textContent = run["w:t"]["#text"];
+          }
+          // If it's an empty object (like {"@_xml:space": "preserve"}), skip it
+
+          if (textContent !== undefined && textContent !== null) {
+            text += String(textContent);
           }
         }
       }
@@ -141,12 +154,24 @@ export class WordChunker implements ChunkingModule {
     // Extract from field values (w:fldSimple)
     if (paragraph["w:fldSimple"]) {
       const field = paragraph["w:fldSimple"];
-      if (field["w:r"] && field["w:r"]["w:t"]) {
-        const fieldText =
-          typeof field["w:r"]["w:t"] === "string"
-            ? field["w:r"]["w:t"]
-            : field["w:r"]["w:t"]["#text"];
-        text += fieldText;
+      if (field["w:r"] && field["w:r"]["w:t"] !== undefined) {
+        let fieldText;
+
+        if (
+          typeof field["w:r"]["w:t"] === "string" ||
+          typeof field["w:r"]["w:t"] === "number"
+        ) {
+          fieldText = field["w:r"]["w:t"];
+        } else if (
+          typeof field["w:r"]["w:t"] === "object" &&
+          field["w:r"]["w:t"]["#text"] !== undefined
+        ) {
+          fieldText = field["w:r"]["w:t"]["#text"];
+        }
+
+        if (fieldText !== undefined && fieldText !== null) {
+          text += String(fieldText);
+        }
       }
     }
 

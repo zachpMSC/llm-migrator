@@ -4,12 +4,12 @@ import {
   handleDirectoryAddFileEvent,
   handleDirectoryRemoveFileEvent,
   handleDirectoryUpdateFileEvent,
-} from "./lib/directory-event-handlers";
+} from "./lib/directoryEventHandlers";
 
 /* PROJECT PROCEDURE BREAKDOWN
   1. Watch a directory for file changes (add, update, remove)
-  2. When a file is added, updated, or removed, trigger the corresponding event handler inside /lib/directory-event-handlers.ts 
-  3. Each event handler will use the createChunkerModule (/lib/create-chunker-module.ts) factory function to create an appropriate chunker for the file type
+  2. When a file is added, updated, or removed, trigger the corresponding event handler inside /lib/directoryEventHandlers.ts 
+  3. Each event handler will use the createChunkerModule (/lib/createChunkerModule.ts) factory function to create an appropriate chunker for the file type
 */
 
 function main() {

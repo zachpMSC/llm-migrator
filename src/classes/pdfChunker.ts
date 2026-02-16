@@ -7,9 +7,12 @@ export class PDFChunker implements ChunkingModule {
     this._file = file;
   }
 
+  get file() {
+    return this._file;
+  }
+
   static async create(file: File): Promise<PDFChunker> {
     const chunker = new PDFChunker(file);
-    console.log("Created PDFChunker instance for file:", chunker._file.name);
     return chunker;
   }
 

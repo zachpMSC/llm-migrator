@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createChunkerModule } from "../../src/lib/create-chunker-module";
+import { createChunkerModule } from "../../src/lib/createChunkerModule";
 import { PDFChunker } from "../../src/classes/pdfChunker";
 import { WordChunker } from "../../src/classes/wordChunker";
 

@@ -7,9 +7,12 @@ export class WordChunker implements ChunkingModule {
     this._file = file;
   }
 
+  get file() {
+    return this._file;
+  }
+
   static async create(file: File): Promise<WordChunker> {
     const chunker = new WordChunker(file);
-    console.log("Created WordChunker instance for file:", chunker._file.name);
     return chunker;
   }
 

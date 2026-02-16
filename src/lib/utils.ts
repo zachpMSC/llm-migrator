@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { Chunk } from "../types";
+import chalk from "chalk";
 
 /**
  * Creates a File object from a file path.
@@ -56,4 +58,40 @@ function getMimeType(filePath: string): string {
   };
 
   return mimeTypes[ext] || "application/octet-stream";
+}
+
+/**
+ * Builds a Chunk object from the provided properties.
+ *
+ * @param {Omit<Chunk, "id" | "createdAt">} props - The properties to build the Chunk, excluding
+ * "id" and "createdAt" which are generated automatically.
+ * @returns {Chunk} A new Chunk object with a unique ID and creation timestamp.
+ */
+export function buildChunk(props: Omit<Chunk, "id" | "createdAt">): Chunk {
+  return {
+    ...props,
+    id: crypto.randomUUID(),
+    createdAt: new Date(),
+  };
+}
+
+/**
+ * @param fileName pass the name of the file to be checked in the db
+ * @return boolean indicating whether the file has been chunked or not
+ */
+export function checkIfFileHasBeenChunked(fileName: string): boolean {
+  // TODO: Implement logic to check if the file has been chunked in the database
+  const uploadedFiles = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, "../../__tests__/testDb/uploadedFiles.json"),
+      "utf-8",
+    ),
+  );
+  for (const file of uploadedFiles.files) {
+    if (file.name === fileName) {
+      console.log(chalk.green(`File ${fileName} has already been chunked.`));
+      return true;
+    }
+  }
+  return false;
 }

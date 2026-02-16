@@ -1,6 +1,7 @@
 import { EventName } from "chokidar/handler";
 import { logger } from "./logger";
 import { getFileFromPath } from "./utils";
+import { createChunkerModule } from "./createChunkerModule";
 
 /**
  * @file Event handlers for directory watcher events.
@@ -19,16 +20,20 @@ import { getFileFromPath } from "./utils";
  * @example
  * handleDirectoryAddFileEvent({ event: 'add', path: '/path/to/file.txt' });
  */
-export function handleDirectoryAddFileEvent({
+export async function handleDirectoryAddFileEvent({
   event,
   path,
 }: {
   event: EventName;
   path: string;
 }) {
-  logger.info(`File added: ${path} with event: ${event}`);
+  if (event !== "add") {
+    logger.warn(`Received unexpected event type: ${event} for path: ${path}`);
+    return;
+  }
   const file = getFileFromPath(path);
-  console.log(`File updated: ${file.name} with type: ${file.type}`);
+  const chunkerModule = await createChunkerModule(file);
+  if (!chunkerModule) return;
 }
 
 /**
@@ -42,16 +47,20 @@ export function handleDirectoryAddFileEvent({
  * @example
  * handleDirectoryUpdateFileEvent({ event: 'change', path: '/path/to/file.txt' });
  */
-export function handleDirectoryUpdateFileEvent({
+export async function handleDirectoryUpdateFileEvent({
   event,
   path,
 }: {
   event: EventName;
   path: string;
 }) {
-  logger.info(`File changed: ${path} with eevent: ${event}`);
+  if (event !== "change") {
+    logger.warn(`Received unexpected event type: ${event} for path: ${path}`);
+    return;
+  }
   const file = getFileFromPath(path);
-  console.log(`File updated: ${file.name} with type: ${file.type}`);
+  const chunkerModule = await createChunkerModule(file);
+  if (!chunkerModule) return;
 }
 
 /**
@@ -72,5 +81,9 @@ export function handleDirectoryRemoveFileEvent({
   event: EventName;
   path: string;
 }) {
+  if (event !== "unlink") {
+    logger.warn(`Received unexpected event type: ${event} for path: ${path}`);
+    return;
+  }
   logger.info(`File removed: ${path} with event: ${event}`);
 }

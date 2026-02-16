@@ -14,6 +14,13 @@ export type SectionResult = {
   confidence: Confidence;
 };
 
+export type DocumentHeaderMetadata = {
+  documentTitle: string;
+  documentNumber: string;
+  revision: string;
+  effectiveDate: string;
+};
+
 export type Chunk = {
   id: string; // UUID
   text: string; // actual chunk content

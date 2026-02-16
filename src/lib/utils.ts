@@ -89,7 +89,7 @@ export function checkIfFileHasBeenChunked(fileName: string): boolean {
   );
   for (const file of uploadedFiles.files) {
     if (file.name === fileName) {
-      console.log(chalk.green(`File ${fileName} has already been chunked.`));
+      console.log(chalk.blue(`File ${fileName} has already been chunked.`));
       return true;
     }
   }

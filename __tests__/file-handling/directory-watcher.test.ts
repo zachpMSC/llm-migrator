@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { watchDirectory, testDir } from "../../src/lib/directory-watcher";
+import { watchDirectory, testDir } from "../../src/lib/directoryWatcher";
 import fs from "node:fs";
 import path from "node:path";
 

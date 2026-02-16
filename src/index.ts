@@ -1,5 +1,5 @@
 import { logger } from "./lib/logger";
-import { testDir, watchDirectory } from "./lib/directory-watcher";
+import { testDir, watchDirectory } from "./lib/directoryWatcher";
 import {
   handleDirectoryAddFileEvent,
   handleDirectoryRemoveFileEvent,

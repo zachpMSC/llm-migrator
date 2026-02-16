@@ -1,17 +1,17 @@
+export type Strategy = "lettered" | "numbered" | "heading" | "fallback";
+
+export type Confidence = number; // 0-1 scale
+
 export type Section = {
   sectionTitle: string;
   content: string;
   heading: { type: Strategy; marker?: string };
 };
 
-export type Confidence = "none" | "weak" | "medium" | "strong";
-
-export type Strategy = "lettered" | "title" | "labeled" | "fallback";
-
 export type SectionResult = {
   strategy: Strategy;
   sections: Section[];
-  confidence: Confidence;
+  confidence: Confidence; // Now a number
 };
 
 export type DocumentHeaderMetadata = {

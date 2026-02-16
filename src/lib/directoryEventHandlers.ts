@@ -34,6 +34,7 @@ export async function handleDirectoryAddFileEvent({
   const file = getFileFromPath(path);
   const chunkerModule = await createChunkerModule(file);
   if (!chunkerModule) return;
+  await chunkerModule.chunkDocument();
 }
 
 /**

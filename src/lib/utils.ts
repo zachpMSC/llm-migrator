@@ -96,3 +96,19 @@ export function checkIfFileHasBeenChunked(fileName: string): boolean {
   }
   return false;
 }
+
+export async function writeToMammothOutput(
+  documentHtml: string,
+): Promise<void> {
+  const fs = await import("fs");
+  const path = await import("path");
+
+  // Create directory if it doesn't exist
+  const outputDir = "__tests__/mammoth";
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  fs.writeFileSync(path.join(outputDir, "mammoth-output.html"), documentHtml);
+  console.log("Saved HTML to __tests__/mammoth/mammoth-output.html");
+}

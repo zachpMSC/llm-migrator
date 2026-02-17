@@ -8,7 +8,7 @@ import {
 import JSZip from "jszip";
 import { XMLParser } from "fast-xml-parser";
 import mammoth from "mammoth";
-import { writeToMammothOutput } from "../lib/utils";
+import { logSectionInfo, writeToMammothOutput } from "../lib/utils";
 
 export class WordChunker implements ChunkingModule {
   private _file: File;
@@ -49,7 +49,8 @@ export class WordChunker implements ChunkingModule {
 
     // 2. Identify sections using strategies
     const sectionResult = await this._identifySections(documentHtml);
-    console.log(sectionResult.sections.length);
+    logSectionInfo(sectionResult);
+
     // 3. Break sections into chunks
     // 4. Build Chunk objects with metadata
     return [];
@@ -206,6 +207,9 @@ export class WordChunker implements ChunkingModule {
     return text;
   }
 
+  /*
+      This method applies multiple strategies to identify sections in the document HTML.
+  */
   private async _identifySections(
     documentHtml: string,
   ): Promise<SectionResult> {
@@ -216,6 +220,7 @@ export class WordChunker implements ChunkingModule {
 
     // Find the one with highest confidence
     const results = [letterResult, numberResult];
+
     const bestResult = results.sort(
       (a, b) => b.confidence - a.confidence,
     )[0] ?? {
@@ -227,14 +232,20 @@ export class WordChunker implements ChunkingModule {
     return bestResult;
   }
 
+  /*
+    This strategy looks for <li><strong> patterns that indicate lettered sections (A, B, C, etc.).
+  */
   private _applyLetterStrategy(html: string): SectionResult {
     const sections: Section[] = [];
 
-    // Look for root-level <ol> with <li> items that start with <strong>
-    const olRegex = /<ol>([\s\S]*?)<\/ol>/gi;
-    const olMatches = [...html.matchAll(olRegex)];
+    // Look for patterns that indicate lettered sections:
+    // <li><strong>Title</strong> or <li><strong>Title.</strong>
+    // We'll match these directly, assuming they're top-level sections
+    const sectionRegex =
+      /<li>\s*<strong>([A-Za-z\s]+?)\.?\s*<\/strong>([\s\S]*?)(?=<li>\s*<strong>[A-Za-z\s]+?\.?\s*<\/strong>|$)/gi;
+    const matches = [...html.matchAll(sectionRegex)];
 
-    if (olMatches.length === 0 || !olMatches[0]?.[1]) {
+    if (matches.length === 0) {
       return {
         strategy: "lettered",
         sections: [],
@@ -242,30 +253,12 @@ export class WordChunker implements ChunkingModule {
       };
     }
 
-    // Get the first (main) ordered list
-    const mainList = olMatches[0][1];
-
-    // Extract list items that start with <strong> (indicating they're section headers)
-    const liRegex = /<li>\s*<strong>([^<]+)<\/strong>([\s\S]*?)<\/li>/gi;
-    const liMatches = [...mainList.matchAll(liRegex)];
-
-    // If we didn't find strong tags at the start of list items, this isn't a lettered strategy
-    if (liMatches.length === 0) {
-      return {
-        strategy: "lettered",
-        sections: [],
-        confidence: 0,
-      };
-    }
-
-    // Check if the strong content looks like titles (not numbered like "1.0")
-    // Lettered sections typically have titles without numbers
-    const hasNumberedTitles = liMatches.some((match) => {
-      const strongContent = match[1] ?? "";
-      return /^\d+(\.\d+)?\s/.test(strongContent); // Starts with "1.0 " or "1 "
+    // Check if titles look numbered (contain "1.0", "2.0", etc.)
+    const hasNumberedTitles = matches.some((match) => {
+      const title = match[1] ?? "";
+      return /^\d+(\.\d+)?\s/.test(title.trim());
     });
 
-    // If they have numbered titles, this is probably NOT a lettered strategy
     if (hasNumberedTitles) {
       return {
         strategy: "lettered",
@@ -274,13 +267,11 @@ export class WordChunker implements ChunkingModule {
       };
     }
 
-    // Build sections with inferred letter markers
-    liMatches.forEach((match, index) => {
-      const title = match[1]?.trim().replace(/\.$/, "") ?? ""; // Remove trailing period
+    // Build sections
+    matches.forEach((match, index) => {
+      const title = match[1]?.trim() ?? "";
       const content = match[2]?.trim() ?? "";
-
-      // Map index to letter (0->A, 1->B, etc.)
-      const marker = String.fromCharCode(65 + index); // 65 is 'A'
+      const marker = String.fromCharCode(65 + index); // A, B, C...
 
       sections.push({
         sectionTitle: title,
@@ -292,22 +283,16 @@ export class WordChunker implements ChunkingModule {
       });
     });
 
-    // Calculate confidence based on:
-    // 1. Number of sections found
-    // 2. Whether the pattern is consistent (all <li> start with <strong>)
-    const totalLiItems = (mainList.match(/<li>/g) || []).length;
-    const strongLiItems = liMatches.length;
-    const consistencyRatio = strongLiItems / totalLiItems;
-
+    // Calculate confidence
     let confidence = 0;
-    if (sections.length >= 5 && consistencyRatio > 0.8) {
-      confidence = 0.9; // High confidence - many sections, consistent pattern
-    } else if (sections.length >= 3 && consistencyRatio > 0.7) {
-      confidence = 0.7; // Medium-high confidence
-    } else if (sections.length >= 2 && consistencyRatio > 0.6) {
-      confidence = 0.5; // Medium confidence
+    if (sections.length >= 5) {
+      confidence = 0.9;
+    } else if (sections.length >= 3) {
+      confidence = 0.7;
+    } else if (sections.length >= 2) {
+      confidence = 0.5;
     } else if (sections.length >= 1) {
-      confidence = 0.3; // Low confidence - not many sections
+      confidence = 0.3;
     }
 
     return {
@@ -323,8 +308,7 @@ export class WordChunker implements ChunkingModule {
   private _applyNumberStrategy(html: string): SectionResult {
     const sections: Section[] = [];
 
-    // Regex to match <h1> tags with numbered patterns, accounting for nested <a> tags
-    // Matches: <h1>...1.0 Purpose</h1> or <h1><a>...</a>1.0 Purpose</h1>
+    // Regex to match <h1> tags with numbered patterns
     const headingRegex =
       /<h1[^>]*>(?:<a[^>]*>.*?<\/a>)?(\d+(?:\.\d+)?)\s+([^<]+)<\/h1>/gi;
     const matches = [...html.matchAll(headingRegex)];
@@ -337,17 +321,24 @@ export class WordChunker implements ChunkingModule {
       };
     }
 
-    // Split HTML by h1 tags to get content between sections
-    const parts = html.split(/<h1[^>]*>.*?<\/h1>/gi);
-
+    // Extract content between each heading
     matches.forEach((match, index) => {
-      const marker = match[1] ?? ""; // "1.0", "2.0", etc.
-      const title = match[2]?.trim() ?? ""; // "Purpose", "Scope", etc.
-      const content = parts[index + 1] || ""; // Content after this heading
+      const marker = match[1] ?? "";
+      const title = match[2]?.trim() ?? "";
+
+      // Find the start of this section's content (right after the </h1>)
+      const sectionStart = (match.index ?? 0) + match[0].length;
+
+      // Find the end of this section (start of next <h1> or end of document)
+      const nextMatch = matches[index + 1];
+      const sectionEnd = nextMatch?.index ?? html.length;
+
+      // Extract all content between this heading and the next
+      const content = html.substring(sectionStart, sectionEnd).trim();
 
       sections.push({
         sectionTitle: title,
-        content: content.trim(),
+        content: content, // This now includes ALL nested content
         heading: {
           type: "numbered",
           marker: marker,
@@ -358,11 +349,11 @@ export class WordChunker implements ChunkingModule {
     // Calculate confidence based on how many sections we found
     let confidence = 0;
     if (sections.length >= 5) {
-      confidence = 0.9; // High confidence - many numbered sections
+      confidence = 0.9;
     } else if (sections.length >= 3) {
-      confidence = 0.7; // Medium-high confidence
+      confidence = 0.7;
     } else if (sections.length >= 1) {
-      confidence = 0.4; // Low confidence - only a few
+      confidence = 0.4;
     }
 
     return {
@@ -371,9 +362,4 @@ export class WordChunker implements ChunkingModule {
       confidence,
     };
   }
-
-  // private _applyHeadingStrategy(html: string): SectionResult {
-  //   // Parse heading-based sections
-  //   return {} as SectionResult;
-  // }
 }

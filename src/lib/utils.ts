@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Chunk } from "../types";
+import type { Chunk, SectionResult } from "../types";
 import chalk from "chalk";
 
 /**
@@ -111,4 +111,12 @@ export async function writeToMammothOutput(
 
   fs.writeFileSync(path.join(outputDir, "mammoth-output.html"), documentHtml);
   console.log("Saved HTML to __tests__/mammoth/mammoth-output.html");
+}
+
+export function logSectionInfo(result: SectionResult): void {
+  console.log(
+    chalk.green(
+      `Identified sections using strategy: ${result.strategy} with confidence: ${result.confidence}. Sections found: ${result.sections.length}`,
+    ),
+  );
 }

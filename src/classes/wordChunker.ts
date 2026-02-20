@@ -40,12 +40,19 @@ export class WordChunker implements ChunkingModule {
     // Step 1: Parse document body with Mammoth
     const arrayBuffer = await this._file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-
     const result = await mammoth.convertToHtml({ buffer });
 
+    // Step 2. Convert HTML to plain text
     const documentHtml = result.value; // The generated HTML
 
+    /* generated HTML for debugging */
     await writeToMammothOutput(documentHtml); // Save HTML for debugging
+
+    // Step 3: Split text into sentences
+
+    // Step 4: Group into ~400 word chunks with 50 word overlap
+
+    // 6. Add metadata to each chunk
 
     return [];
   }

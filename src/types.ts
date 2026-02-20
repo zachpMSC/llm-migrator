@@ -31,11 +31,6 @@ export type Chunk = {
   revision: string;
   effectiveDate: string;
 
-  // section-level metadata
-  sectionTitle?: string;
-  headingType?: Strategy; // lettered | title | fallback
-  headingMarker?: string; // "A", "Dress Code Policy", etc.
-
   // chunking metadata
   chunkIndex: number; // order within section
   totalChunksInSection?: number;

@@ -42,3 +42,8 @@ export type Chunk = {
 export interface ChunkingModule {
   chunkDocument(): Promise<Chunk[]>;
 }
+
+export interface ReplacementRule {
+  pattern: RegExp;
+  replacement: string;
+}

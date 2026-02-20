@@ -113,6 +113,20 @@ export async function writeToMammothOutput(
   console.log("Saved HTML to __tests__/mammoth/mammoth-output.html");
 }
 
+export async function writeToTextOutput(documentHtml: string): Promise<void> {
+  const fs = await import("fs");
+  const path = await import("path");
+
+  // Create directory if it doesn't exist
+  const outputDir = "__tests__/mammoth";
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  fs.writeFileSync(path.join(outputDir, "mammoth-output.txt"), documentHtml);
+  console.log("Saved text to __tests__/mammoth/mammoth-output.txt");
+}
+
 export function logSectionInfo(result: SectionResult): void {
   console.log(
     chalk.green(

@@ -2,17 +2,42 @@ import {
   ChunkingModule,
   Chunk,
   DocumentHeaderMetadata,
-  SectionResult,
-  Section,
+  ReplacementRule,
 } from "../types";
 import JSZip from "jszip";
 import { XMLParser } from "fast-xml-parser";
 import mammoth from "mammoth";
-import { logSectionInfo, writeToMammothOutput } from "../lib/utils";
+import { writeToMammothOutput } from "../lib/utils";
+import { writeToTextOutput } from "../lib/utils";
+import { convert } from "html-to-text";
 
 export class WordChunker implements ChunkingModule {
   private _file: File;
   private _documentMetadata: DocumentHeaderMetadata | null = null;
+
+  // Define signature normalization rules as a class property for reuse
+  private readonly SIGNATURE_NORMALIZATION_RULES: ReplacementRule[] = [
+    {
+      pattern: /Date:\s*_{5,}/gi,
+      replacement: "Date: [SIGNATURE DATE REQUIRED]",
+    },
+    { pattern: /Name:\s*_{5,}/gi, replacement: "Name: [SIGNATURE FIELD]" },
+    { pattern: /Title:\s*_{5,}/gi, replacement: "Title: [TO BE FILLED]" },
+    {
+      pattern: /Signature:\s*_{5,}/gi,
+      replacement: "Signature: [SIGNATURE REQUIRED]",
+    },
+    {
+      pattern: /Comments?:\s*_{5,}/gi,
+      replacement: "Comments: [TO BE FILLED]",
+    },
+    {
+      pattern: /([A-Za-z\s]*Approval):\s*_{5,}/gi,
+      replacement: "$1: [APPROVAL SIGNATURE REQUIRED]",
+    },
+    { pattern: /([A-Za-z\s]+):\s*_{5,}/g, replacement: "$1: [TO BE FILLED]" },
+    { pattern: /_{10,}/g, replacement: "[SIGNATURE LINE]" },
+  ];
 
   /* ----- CONSTRUCTOR ----- */
   constructor(file: File) {
@@ -43,10 +68,25 @@ export class WordChunker implements ChunkingModule {
     const result = await mammoth.convertToHtml({ buffer });
 
     // Step 2. Convert HTML to plain text
-    const documentHtml = result.value; // The generated HTML
+    const text = convert(result.value, {
+      wordwrap: false, // Don't wrap text, preserve original formatting as much as possible
+    });
+
+    // Apply cleansing functions sequentially
+    const cleansingFunctions = [
+      this._removeImgTagsFromText,
+      this._normalizeSignatureLines,
+    ];
+
+    // Step 3. Cleanse the text using the defined functions
+    const cleansedText = cleansingFunctions.reduce(
+      (acc, fn) => fn.call(this, acc),
+      text,
+    );
 
     /* generated HTML for debugging */
-    await writeToMammothOutput(documentHtml); // Save HTML for debugging
+    await writeToMammothOutput(result.value); // Save HTML for debugging
+    await writeToTextOutput(cleansedText); // Save cleansed text for debugging
 
     // Step 3: Split text into sentences
 
@@ -206,5 +246,29 @@ export class WordChunker implements ChunkingModule {
       .trim();
 
     return text;
+  }
+
+  /**
+   * Removes image tags from the provided text.
+   *
+   * @param text - The text from which to remove image tags.
+   * @returns The text with image tags removed.
+   */
+  private _removeImgTagsFromText(text: string): string {
+    // Remove data:image tags (base64 encoded images)
+    return text.replace(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g, "[IMAGE]");
+  }
+
+  /**
+   *  Normalizes signature lines in the text by replacing underscores with descriptive placeholders.
+   * @param text - The text containing signature lines.
+   * @returns The text with normalized signature lines.
+   */
+  private _normalizeSignatureLines(text: string): string {
+    return this.SIGNATURE_NORMALIZATION_RULES.reduce(
+      (result, { pattern, replacement }) =>
+        result.replace(pattern, replacement),
+      text,
+    );
   }
 }

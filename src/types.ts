@@ -59,3 +59,7 @@ export interface OllamaModel {
 export interface OllamaTagsResponse {
   models: OllamaModel[];
 }
+
+export interface OllamaEmbeddingResponse {
+  embedding: number[];
+}

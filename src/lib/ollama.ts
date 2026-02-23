@@ -1,4 +1,4 @@
-import { OllamaTagsResponse } from "../types";
+import { OllamaEmbeddingResponse, OllamaTagsResponse } from "../types";
 
 function createOllamaModule() {
   const OLLAMA_BASE_URL = "http://localhost:11434";
@@ -43,7 +43,26 @@ function createOllamaModule() {
     }
   }
 
-  function createEmbedding() {}
+  async function createEmbedding(text: string): Promise<number[]> {
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/embeddings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: EMBEDDING_MODEL,
+        prompt: text,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to create embedding: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as OllamaEmbeddingResponse;
+    return data.embedding; // Returns array of 768 numbers
+  }
+
   return {
     initialize,
     createEmbedding,

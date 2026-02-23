@@ -3,7 +3,6 @@ import JSZip from "jszip";
 import { XMLParser } from "fast-xml-parser";
 import mammoth from "mammoth";
 import { convert } from "html-to-text";
-import { writeToChunkOutput } from "../lib/utils";
 
 export class WordChunker implements ChunkingModule {
   private _file: File;
@@ -54,10 +53,6 @@ export class WordChunker implements ChunkingModule {
 
     // Step 5: Chunk by logical sections (paragraphs + tables as units)
     const chunks = this._chunkByParagraphsAndTables(text);
-
-    console.log(`Created ${chunks.length} chunks from document`);
-
-    await writeToChunkOutput(chunks);
 
     return chunks;
   }

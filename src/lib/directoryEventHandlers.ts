@@ -2,6 +2,7 @@ import { EventName } from "chokidar/handler";
 import { logger } from "./logger";
 import { getFileFromPath } from "./utils";
 import { createChunkerModule } from "./createChunkerModule";
+import { ollama } from "./ollama";
 
 /**
  * @file Event handlers for directory watcher events.
@@ -32,9 +33,26 @@ export async function handleDirectoryAddFileEvent({
     return;
   }
   const file = getFileFromPath(path);
+
   const chunkerModule = await createChunkerModule(file);
   if (!chunkerModule) return;
-  await chunkerModule.chunkDocument();
+  const chunks = await chunkerModule.chunkDocument();
+  const chunksWithEmbeddings = await Promise.all(
+    chunks.map(async (chunk) => ({
+      ...chunk,
+      embedding: await ollama.createEmbedding(chunk.text),
+    })),
+  );
+  if (chunksWithEmbeddings.length > 0) {
+    console.log(
+      `✅ Processed file: ${file.name} with ${chunksWithEmbeddings.length} chunks and embeddings.`,
+    );
+  }
+  if (chunksWithEmbeddings.length === 0) {
+    console.log(
+      `⚠️  No chunks created for file: ${file.name}. Skipping embedding creation.`,
+    );
+  }
 }
 
 /**

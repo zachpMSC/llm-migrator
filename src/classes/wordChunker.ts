@@ -1,43 +1,13 @@
-import {
-  ChunkingModule,
-  Chunk,
-  DocumentHeaderMetadata,
-  ReplacementRule,
-} from "../types";
+import { ChunkingModule, Chunk, DocumentHeaderMetadata } from "../types";
 import JSZip from "jszip";
 import { XMLParser } from "fast-xml-parser";
 import mammoth from "mammoth";
-import { writeToMammothOutput } from "../lib/utils";
-import { writeToTextOutput } from "../lib/utils";
 import { convert } from "html-to-text";
+import { writeToChunkOutput } from "../lib/utils";
 
 export class WordChunker implements ChunkingModule {
   private _file: File;
   private _documentMetadata: DocumentHeaderMetadata | null = null;
-
-  // Define signature normalization rules as a class property for reuse
-  private readonly SIGNATURE_NORMALIZATION_RULES: ReplacementRule[] = [
-    {
-      pattern: /Date:\s*_{5,}/gi,
-      replacement: "Date: [SIGNATURE DATE REQUIRED]",
-    },
-    { pattern: /Name:\s*_{5,}/gi, replacement: "Name: [SIGNATURE FIELD]" },
-    { pattern: /Title:\s*_{5,}/gi, replacement: "Title: [TO BE FILLED]" },
-    {
-      pattern: /Signature:\s*_{5,}/gi,
-      replacement: "Signature: [SIGNATURE REQUIRED]",
-    },
-    {
-      pattern: /Comments?:\s*_{5,}/gi,
-      replacement: "Comments: [TO BE FILLED]",
-    },
-    {
-      pattern: /([A-Za-z\s]*Approval):\s*_{5,}/gi,
-      replacement: "$1: [APPROVAL SIGNATURE REQUIRED]",
-    },
-    { pattern: /([A-Za-z\s]+):\s*_{5,}/g, replacement: "$1: [TO BE FILLED]" },
-    { pattern: /_{10,}/g, replacement: "[SIGNATURE LINE]" },
-  ];
 
   /* ----- CONSTRUCTOR ----- */
   constructor(file: File) {
@@ -67,82 +37,248 @@ export class WordChunker implements ChunkingModule {
     const buffer = Buffer.from(arrayBuffer);
     const result = await mammoth.convertToHtml({ buffer });
 
-    // Step 2. Convert HTML to plain text
-    const text = convert(result.value, {
-      wordwrap: false, // Don't wrap text, preserve original formatting as much as possible
-    });
+    // Step 2: Convert tables to markdown BEFORE converting to text
+    let html = result.value;
+    html = this._convertTablesToMarkdown(html);
 
-    // Apply cleansing functions sequentially
+    // Step 3: Convert HTML to text
+    let text = convert(html, { wordwrap: false });
+
+    // Step 4: Apply cleansing functions
     const cleansingFunctions = [
       this._removeImgTagsFromText,
       this._normalizeSignatureLines,
     ];
 
-    // Step 3. Cleanse the text using the defined functions
-    const cleansedText = cleansingFunctions.reduce(
-      (acc, fn) => fn.call(this, acc),
-      text,
-    );
+    text = cleansingFunctions.reduce((acc, fn) => fn.call(this, acc), text);
 
-    /* generated HTML for debugging */
-    await writeToMammothOutput(result.value); // Save HTML for debugging
-    await writeToTextOutput(cleansedText); // Save cleansed text for debugging
+    // Step 5: Chunk by logical sections (paragraphs + tables as units)
+    const chunks = this._chunkByParagraphsAndTables(text);
 
-    // Step 3: Split text into sentences
+    console.log(`Created ${chunks.length} chunks from document`);
 
-    // Step 4: Group into ~400 word chunks with 50 word overlap
+    await writeToChunkOutput(chunks);
 
-    // 6. Add metadata to each chunk
-
-    return [];
+    return chunks;
   }
 
   /* ----- PRIVATE METHODS ----- */
+
   /**
-   * Extracts document metadata from the Word document header.
-   * Unzips the .docx file and parses the header XML to find:
-   * - Procedure Title
-   * - Document Number
-   * - Effective Date
-   * - Revision
-   *
-   * @returns {Promise<DocumentHeaderMetadata>} The extracted metadata
-   * @throws {Error} If header cannot be found or parsed
+   * Converts HTML tables to markdown format for better readability
+   */
+  private _convertTablesToMarkdown(html: string): string {
+    return html.replace(/<table[\s\S]*?<\/table>/gi, (tableHtml) => {
+      const rows = tableHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+
+      if (rows.length === 0) return "";
+
+      let markdown = "\n\n";
+
+      rows.forEach((row, rowIndex) => {
+        const cells = row.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi) || [];
+        const cellTexts = cells.map((cell) =>
+          cell
+            .replace(/<[^>]*>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim(),
+        );
+
+        // Add cells
+        markdown += "| " + cellTexts.join(" | ") + " |\n";
+
+        // Add separator after header row
+        if (rowIndex === 0) {
+          markdown += "| " + cellTexts.map(() => "---").join(" | ") + " |\n";
+        }
+      });
+
+      return markdown + "\n";
+    });
+  }
+
+  /**
+   * Remove base64 image data from text
+   */
+  private _removeImgTagsFromText(text: string): string {
+    return text.replace(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g, "[IMAGE]");
+  }
+
+  /**
+   * Normalize signature lines with descriptive placeholders
+   */
+  private _normalizeSignatureLines(text: string): string {
+    const replacements = [
+      {
+        pattern: /Date:\s*_{5,}/gi,
+        replacement: "Date: [SIGNATURE DATE REQUIRED]",
+      },
+      { pattern: /Name:\s*_{5,}/gi, replacement: "Name: [SIGNATURE FIELD]" },
+      { pattern: /Title:\s*_{5,}/gi, replacement: "Title: [TO BE FILLED]" },
+      {
+        pattern: /Signature:\s*_{5,}/gi,
+        replacement: "Signature: [SIGNATURE REQUIRED]",
+      },
+      {
+        pattern: /Comments?:\s*_{5,}/gi,
+        replacement: "Comments: [TO BE FILLED]",
+      },
+      {
+        pattern: /([A-Za-z\s]*Approval):\s*_{5,}/gi,
+        replacement: "$1: [APPROVAL SIGNATURE REQUIRED]",
+      },
+      { pattern: /([A-Za-z\s]+):\s*_{5,}/g, replacement: "$1: [TO BE FILLED]" },
+      { pattern: /_{10,}/g, replacement: "[SIGNATURE LINE]" },
+    ];
+
+    return replacements.reduce(
+      (result, { pattern, replacement }) =>
+        result.replace(pattern, replacement),
+      text,
+    );
+  }
+
+  /**
+   * Chunk text by paragraphs and tables, keeping tables intact with overlap
+   */
+  private _chunkByParagraphsAndTables(text: string): Chunk[] {
+    // Split on double newlines (paragraphs) but keep markdown tables together
+    const sections = text.split(/\n\n+/).filter((s) => s.trim().length > 0);
+    const chunks: Chunk[] = [];
+    const targetWords = 400;
+    const overlapWords = 50;
+
+    let i = 0;
+    let chunkIndex = 0;
+
+    while (i < sections.length) {
+      const currentSections: string[] = [];
+      let wordCount = 0;
+
+      // Build chunk until we hit target word count
+      while (i < sections.length && wordCount < targetWords) {
+        const section = sections[i];
+
+        // Type guard: ensure section is defined
+        if (!section) {
+          i++;
+          continue;
+        }
+
+        const sectionWords = this._countWords(section);
+        const isTable = section.trim().startsWith("|");
+
+        // Always include at least one section
+        if (currentSections.length === 0) {
+          currentSections.push(section);
+          wordCount += sectionWords;
+          i++;
+
+          // If it's a table, stop here and make it its own chunk
+          if (isTable) {
+            break;
+          }
+        }
+        // If this section would exceed target by too much, stop
+        else if (wordCount + sectionWords > targetWords * 1.2) {
+          break;
+        }
+        // If it's a table, save current chunk and start new one with table
+        else if (isTable) {
+          break;
+        }
+        // Otherwise add to current chunk
+        else {
+          currentSections.push(section);
+          wordCount += sectionWords;
+          i++;
+        }
+      }
+
+      // Create chunk from collected sections
+      const chunkContent = currentSections.join("\n\n");
+      chunks.push(this._createChunk(chunkContent, chunkIndex++));
+
+      // Create overlap for next chunk (skip if last chunk was a table)
+      const lastSection = currentSections[currentSections.length - 1];
+      const lastWasTable = lastSection?.trim().startsWith("|") ?? false;
+
+      if (!lastWasTable && i < sections.length) {
+        // Backtrack to create overlap
+        let overlapCount = 0;
+        let backtrackSteps = 0;
+
+        // Count backwards until we have ~50 words
+        while (
+          overlapCount < overlapWords &&
+          backtrackSteps < currentSections.length - 1
+        ) {
+          backtrackSteps++;
+          const overlapSection = sections[i - backtrackSteps];
+          if (overlapSection) {
+            overlapCount += this._countWords(overlapSection);
+          }
+        }
+
+        // Move index back for overlap
+        i -= backtrackSteps;
+      }
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Create a Chunk object with metadata
+   */
+  private _createChunk(content: string, index: number): Chunk {
+    const isTable = content.trim().startsWith("|");
+
+    return {
+      id: `${this._documentMetadata?.documentNumber ?? "doc"}_chunk_${index}`,
+      text: content,
+      documentTitle: this._documentMetadata?.documentTitle ?? "",
+      documentNumber: this._documentMetadata?.documentNumber ?? "",
+      effectiveDate: this._documentMetadata?.effectiveDate ?? "",
+      revision: this._documentMetadata?.revision ?? "",
+      chunkIndex: index,
+      wordCount: this._countWords(content),
+      contentType: isTable ? "table" : "text",
+      createdAt: new Date(),
+    };
+  }
+
+  /**
+   * Count words in text
+   */
+  private _countWords(text: string): number {
+    return text.split(/\s+/).filter(Boolean).length;
+  }
+
+  /**
+   * Extracts document metadata from the Word document header
    */
   private async _extractHeaderMetadata(): Promise<DocumentHeaderMetadata> {
-    // Step 1: Read the file as an array buffer
     const arrayBuffer = await this._file.arrayBuffer();
-
-    // Step 2: Unzip the .docx file
     const zip = await JSZip.loadAsync(arrayBuffer);
 
-    // Step 3: Get the header XML file
     const headerFile = zip.file("word/header1.xml");
     if (!headerFile) {
       throw new Error("Header file not found in document");
     }
 
-    // Step 4: Read the header XML content
     const headerXml = await headerFile.async("text");
-
-    // Step 5: Parse the XML
     const parser = new XMLParser({
       ignoreAttributes: false,
       parseTagValue: true,
     });
     const headerData = parser.parse(headerXml);
 
-    // Step 6: Extract the metadata from the parsed XML
-    const metadata = this._parseHeaderTable(headerData);
-
-    return metadata;
+    return this._parseHeaderTable(headerData);
   }
 
   /**
-   * Parses the header table structure to extract metadata fields.
-   *
-   * @param {any} headerData - The parsed XML data
-   * @returns {DocumentHeaderMetadata} The extracted metadata
+   * Parses the header table structure to extract metadata fields
    */
   private _parseHeaderTable(headerData: any): DocumentHeaderMetadata {
     const table = headerData["w:hdr"]["w:tbl"];
@@ -154,16 +290,10 @@ export class WordChunker implements ChunkingModule {
 
     // Row 2 - Number, Effective, Revision
     const row2 = rows[1]["w:tc"];
-
-    // Cell 2 (index 1) - Number
     const numberCell = row2[1];
     const documentNumber = this._extractTextFromCell(numberCell);
-
-    // Cell 3 (index 2) - Effective Date
     const effectiveCell = row2[2];
     const effectiveDate = this._extractTextFromCell(effectiveCell);
-
-    // Cell 4 (index 3) - Revision
     const revisionCell = row2[3];
     const revision = this._extractTextFromCell(revisionCell);
 
@@ -176,11 +306,7 @@ export class WordChunker implements ChunkingModule {
   }
 
   /**
-   * Extracts text content from a table cell, handling both regular text
-   * and field values (w:fldSimple).
-   *
-   * @param {any} cell - The table cell object
-   * @returns {string} The extracted text
+   * Extracts text content from a table cell
    */
   private _extractTextFromCell(cell: any): string {
     const paragraph = cell["w:p"];
@@ -195,7 +321,6 @@ export class WordChunker implements ChunkingModule {
         if (run["w:t"] !== undefined) {
           let textContent;
 
-          // Handle different w:t formats
           if (
             typeof run["w:t"] === "string" ||
             typeof run["w:t"] === "number"
@@ -207,7 +332,6 @@ export class WordChunker implements ChunkingModule {
           ) {
             textContent = run["w:t"]["#text"];
           }
-          // If it's an empty object (like {"@_xml:space": "preserve"}), skip it
 
           if (textContent !== undefined && textContent !== null) {
             text += String(textContent);
@@ -240,35 +364,11 @@ export class WordChunker implements ChunkingModule {
       }
     }
 
-    // Clean up the text - remove label prefixes like "Number:", "Effective:", etc.
+    // Clean up the text
     text = text
       .replace(/^(Procedure Title:|Number:|Effective:|Revision:)\s*/i, "")
       .trim();
 
     return text;
-  }
-
-  /**
-   * Removes image tags from the provided text.
-   *
-   * @param text - The text from which to remove image tags.
-   * @returns The text with image tags removed.
-   */
-  private _removeImgTagsFromText(text: string): string {
-    // Remove data:image tags (base64 encoded images)
-    return text.replace(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g, "[IMAGE]");
-  }
-
-  /**
-   *  Normalizes signature lines in the text by replacing underscores with descriptive placeholders.
-   * @param text - The text containing signature lines.
-   * @returns The text with normalized signature lines.
-   */
-  private _normalizeSignatureLines(text: string): string {
-    return this.SIGNATURE_NORMALIZATION_RULES.reduce(
-      (result, { pattern, replacement }) =>
-        result.replace(pattern, replacement),
-      text,
-    );
   }
 }

@@ -22,7 +22,7 @@ export type DocumentHeaderMetadata = {
 };
 
 export type Chunk = {
-  id: string; // UUID
+  id: string; // ID for the chunk, could be a UUID or a combination of document ID and chunk index
   text: string; // actual chunk content
 
   // document-level metadata
@@ -33,7 +33,8 @@ export type Chunk = {
 
   // chunking metadata
   chunkIndex: number; // order within section
-  totalChunksInSection?: number;
+  wordCount: number;
+  contentType: "text" | "table";
 
   // audit / lifecycle
   createdAt: Date;
@@ -46,4 +47,15 @@ export interface ChunkingModule {
 export interface ReplacementRule {
   pattern: RegExp;
   replacement: string;
+}
+
+export interface OllamaModel {
+  name: string;
+  modified_at: string;
+  size: number;
+  digest: string;
+}
+
+export interface OllamaTagsResponse {
+  models: OllamaModel[];
 }

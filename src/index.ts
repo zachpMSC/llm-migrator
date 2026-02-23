@@ -5,6 +5,7 @@ import {
   handleDirectoryRemoveFileEvent,
   handleDirectoryUpdateFileEvent,
 } from "./lib/directoryEventHandlers";
+import { ollama } from "./lib/ollama";
 
 /* PROJECT PROCEDURE BREAKDOWN
   1. Watch a directory for file changes (add, update, remove)
@@ -12,7 +13,12 @@ import {
   3. Each event handler will use the createChunkerModule (/lib/createChunkerModule.ts) factory function to create an appropriate chunker for the file type
 */
 
-function main() {
+async function main() {
+  /* 
+    Ensure Ollama is running and the embedding model is available. 
+    If not run 'ollama pull nomic-embed-text' to get the model. 
+  */
+  await ollama.initialize();
   watchDirectory({
     path: testDir,
     cb: (event, path) => {

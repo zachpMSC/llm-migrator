@@ -134,3 +134,21 @@ export function logSectionInfo(result: SectionResult): void {
     ),
   );
 }
+
+export async function writeToChunkOutput(chunks: Chunk[]): Promise<void> {
+  const fs = await import("fs");
+  const path = await import("path");
+
+  // Create directory if it doesn't exist
+  const outputDir = "__tests__/mammoth";
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  // Write to file
+  fs.writeFileSync(
+    path.join(outputDir, "chunk-output.json"),
+    JSON.stringify(chunks, null, 2),
+  );
+  console.log("Saved chunks to __tests__/mammoth/chunk-output.json");
+}

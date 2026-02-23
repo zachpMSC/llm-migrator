@@ -14,29 +14,34 @@ import { ollama } from "./lib/ollama";
 */
 
 async function main() {
-  /* 
+  try {
+    /* 
     Ensure Ollama is running and the embedding model is available. 
     If not run 'ollama pull nomic-embed-text' to get the model. 
   */
-  await ollama.initialize();
-  watchDirectory({
-    path: testDir,
-    cb: (event, path) => {
-      switch (event) {
-        case "add": // new file added
-          handleDirectoryAddFileEvent({ event, path });
-          break;
-        case "change": // existing file changed
-          handleDirectoryUpdateFileEvent({ event, path });
-          break;
-        case "unlink": // file removed
-          handleDirectoryRemoveFileEvent({ event, path });
-          break;
-        default:
-          logger.info(`Event: ${event}, Path: ${path}`);
-      }
-    },
-  });
+    await ollama.initialize();
+    watchDirectory({
+      path: testDir,
+      cb: (event, path) => {
+        switch (event) {
+          case "add": // new file added
+            handleDirectoryAddFileEvent({ event, path });
+            break;
+          case "change": // existing file changed
+            handleDirectoryUpdateFileEvent({ event, path });
+            break;
+          case "unlink": // file removed
+            handleDirectoryRemoveFileEvent({ event, path });
+            break;
+          default:
+            logger.info(`Event: ${event}, Path: ${path}`);
+        }
+      },
+    });
+  } catch (error) {
+    logger.error(`Error in main function: ${(error as Error).message}`);
+    process.exit(1);
+  }
 }
 
 main();

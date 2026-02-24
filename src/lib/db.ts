@@ -49,7 +49,20 @@ export function createDbClient() {
     }
   }
 
-  return { testConnection, queryCarTable };
+  async function checkIfFileHasBeenChunked(path: string) {
+    try {
+      const res = await pool.query(
+        `SELECT id FROM chunked_files WHERE path = $1`,
+        [path],
+      );
+      return res.rows.length > 0; // Returns true if the file has been chunked, false otherwise
+    } catch (err) {
+      console.error("❌ Error checking if file has been chunked:", err);
+      return false;
+    }
+  }
+
+  return { testConnection, queryCarTable, checkIfFileHasBeenChunked };
 }
 
 export const db = createDbClient();

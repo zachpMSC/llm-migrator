@@ -6,6 +6,7 @@ import {
   handleDirectoryUpdateFileEvent,
 } from "./lib/directoryEventHandlers";
 import { ollama } from "./lib/ollama";
+import { db } from "./lib/db";
 
 /* PROJECT PROCEDURE BREAKDOWN
   1. Watch a directory for file changes (add, update, remove)
@@ -20,6 +21,8 @@ async function main() {
     If not run 'ollama pull nomic-embed-text' to get the model. 
   */
     await ollama.initialize();
+    await db.testConnection();
+
     watchDirectory({
       path: testDir,
       cb: (event, path) => {

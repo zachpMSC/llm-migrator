@@ -3,6 +3,7 @@ import { logger } from "./logger";
 import { getFileFromPath } from "./utils";
 import { createChunkerModule } from "./createChunkerModule";
 import { ollama } from "./ollama";
+import chalk from "chalk";
 
 /**
  * @file Event handlers for directory watcher events.
@@ -28,29 +29,40 @@ export async function handleDirectoryAddFileEvent({
   event: EventName;
   path: string;
 }) {
-  if (event !== "add") {
-    logger.warn(`Received unexpected event type: ${event} for path: ${path}`);
-    return;
-  }
-  const file = getFileFromPath(path);
+  try {
+    if (event !== "add") {
+      logger.warn(`Received unexpected event type: ${event} for path: ${path}`);
+      return;
+    }
+    const file = getFileFromPath(path);
 
-  const chunkerModule = await createChunkerModule(file);
-  if (!chunkerModule) return;
-  const chunks = await chunkerModule.chunkDocument();
-  const chunksWithEmbeddings = await Promise.all(
-    chunks.map(async (chunk) => ({
-      ...chunk,
-      embedding: await ollama.createEmbedding(chunk.text),
-    })),
-  );
-  if (chunksWithEmbeddings.length > 0) {
-    console.log(
-      `✅ Processed file: ${file.name} with ${chunksWithEmbeddings.length} chunks and embeddings.`,
+    const chunkerModule = await createChunkerModule(file, path);
+    if (!chunkerModule) return;
+
+    console.log(`📁 New file added: ${file.name} at path: ${path}`);
+
+    const chunks = await chunkerModule.chunkDocument();
+    const chunksWithEmbeddings = await Promise.all(
+      chunks.map(async (chunk) => ({
+        ...chunk,
+        embedding: await ollama.createEmbedding(chunk.text),
+      })),
     );
-  }
-  if (chunksWithEmbeddings.length === 0) {
-    console.log(
-      `⚠️  No chunks created for file: ${file.name}. Skipping embedding creation.`,
+    if (chunksWithEmbeddings.length > 0) {
+      console.log(
+        `✅ Processed file: ${file.name} with ${chunksWithEmbeddings.length} chunks and embeddings.`,
+      );
+    }
+    if (chunksWithEmbeddings.length === 0) {
+      console.log(
+        chalk.yellow(
+          `No chunks created for file: ${file.name}. Skipping embedding creation.`,
+        ),
+      );
+    }
+  } catch (error) {
+    logger.error(
+      `Error processing file at path: ${path} with event: ${event}. Error: ${error}`,
     );
   }
 }
@@ -78,7 +90,7 @@ export async function handleDirectoryUpdateFileEvent({
     return;
   }
   const file = getFileFromPath(path);
-  const chunkerModule = await createChunkerModule(file);
+  const chunkerModule = await createChunkerModule(file, path);
   if (!chunkerModule) return;
 }
 

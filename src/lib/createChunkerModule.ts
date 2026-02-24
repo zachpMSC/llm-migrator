@@ -1,11 +1,17 @@
+import chalk from "chalk";
 import { PDFChunker } from "../classes/pdfChunker";
 import { WordChunker } from "../classes/wordChunker";
-import { checkIfFileHasBeenChunked } from "./utils";
+import { db } from "./db";
 
-export async function createChunkerModule(file: File) {
+export async function createChunkerModule(file: File, path: string) {
   // Check if the file has already been chunked before creating a new chunker module
   // This prevents unnecessary processing and ensures that we don't create multiple chunker modules for the same file
-  if (checkIfFileHasBeenChunked(file.name)) {
+  if (await db.checkIfFileHasBeenChunked(path)) {
+    console.log(
+      chalk.yellow(
+        `File at path "${path}" has already been chunked. Skipping chunker module creation.`,
+      ),
+    );
     return null;
   }
 

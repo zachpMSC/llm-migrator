@@ -28,10 +28,12 @@ export function createDbClient() {
         .then(() =>
           console.log("🐘 Connected to postgres database successfully!"),
         )
-        .catch((err) => console.error("❌ Connection error:", err))
+        .catch((err) => {
+          console.error("❌ Connection error:", err);
+          process.exit(0);
+        })
         .finally(() => {
           client.end();
-          process.exit(0);
         });
     } catch (err) {
       console.error("❌ Failed to connect to the database:", err);

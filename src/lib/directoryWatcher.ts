@@ -2,7 +2,6 @@ import chokidar, { FSWatcher } from "chokidar";
 import { EventName } from "chokidar/handler";
 import fs from "node:fs";
 import path from "node:path";
-import chalk from "chalk";
 
 /** * Watch a directory for changes and execute a callback on events.
  *
@@ -27,7 +26,7 @@ export function watchDirectory({
   path: string;
   cb: (event: EventName, path: string) => void;
 }): FSWatcher {
-  console.log(chalk.blue(`Watching directory: ${dirPath}`));
+  console.log(`🔎 Watching directory: ${dirPath}`);
 
   // Resolve to absolute path (safer + predictable)
   const resolvedPath = path.resolve(dirPath);

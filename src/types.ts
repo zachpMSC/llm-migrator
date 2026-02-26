@@ -40,7 +40,7 @@ export type Chunk = {
   createdAt: Date;
 };
 
-export interface ChunkingModule {
+export interface chunkingModule {
   chunkDocument(): Promise<Chunk[]>;
 }
 

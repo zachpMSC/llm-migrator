@@ -4,6 +4,8 @@ import { getFileFromPath } from "./utils";
 import { createChunkerModule } from "./createChunkerModule";
 import { ollama } from "./ollama";
 import chalk from "chalk";
+import ora from "ora";
+import { db } from "./db";
 
 /**
  * @file Event handlers for directory watcher events.
@@ -40,26 +42,39 @@ export async function handleDirectoryAddFileEvent({
     if (!chunkerModule) return;
 
     console.log(`📁 New file added: ${file.name} at path: ${path}`);
+    const spinner = ora(`Chunking ${file.name}...`).start();
 
     const chunks = await chunkerModule.chunkDocument();
+
+    spinner.text = `Creating embeddings for ${chunks.length} chunks...`;
+
     const chunksWithEmbeddings = await Promise.all(
       chunks.map(async (chunk) => ({
         ...chunk,
         embedding: await ollama.createEmbedding(chunk.text),
       })),
     );
-    if (chunksWithEmbeddings.length > 0) {
-      console.log(
-        `✅ Processed file: ${file.name} with ${chunksWithEmbeddings.length} chunks and embeddings.`,
-      );
-    }
     if (chunksWithEmbeddings.length === 0) {
-      console.log(
+      spinner.warn(
         chalk.yellow(
           `No chunks created for file: ${file.name}. Skipping embedding creation.`,
         ),
       );
+      return;
     }
+
+    const fileId = await db.insertChunkedFile(file.name, path);
+    await db.insertChunks(
+      chunks,
+      fileId,
+      chunksWithEmbeddings.map((c) => c.embedding),
+    );
+
+    spinner.succeed(
+      ` Processed ${file.name} — ${chunksWithEmbeddings.length} chunks and embeddings and saved to database..`,
+    );
+
+    // Here you would typically insert the chunks and embeddings into your database
   } catch (error) {
     logger.error(
       `Error processing file at path: ${path} with event: ${event}. Error: ${error}`,
